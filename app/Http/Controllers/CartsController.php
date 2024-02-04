@@ -145,22 +145,27 @@ class CartsController extends Controller
         $discount = $majorDiscountTotalValue;
         $total = $subtotal->subtract($discount);
         $strategy = 0 == $minorStrategy ? 'none' : $minorStrategy;
+
+        $isDebug = (bool) $request->get('debug') | false;
+        $finalResponse = [
+            'message' => 'Success.',
+            'data' => [
+                'subtotal' => $moneyFormatter->format($subtotal),
+                'discount' => $moneyFormatter->format($discount),
+                'total' => $moneyFormatter->format($total),
+                'strategy' => $strategy,
+            ],
+        ];
+        if ($isDebug) {
+            $finalResponse['debug'] = [
+                'valor final com desconto' => $moneyFormatter->format($minorTotalValue),
+                'estrategia' => $minorStrategy.' - '.((array_key_exists($minorStrategy, $discountRules)) ? $discountRules[$minorStrategy]['description'] : 'NENHUMA'),
+                'total de desconto' => $moneyFormatter->format($majorDiscountTotalValue),
+            ];
+            $finalResponse['rulesPossibles'] = $discountRules;
+        }
         return new JsonResponse(
-            [
-                'message' => 'Success.',
-                'data' => [
-                    'subtotal' => $moneyFormatter->format($subtotal),
-                    'discount' => $moneyFormatter->format($discount),
-                    'total' => $moneyFormatter->format($total),
-                    'strategy' => $strategy,
-                    // 'debug' => [
-                    //     'valor final com desconto' => $moneyFormatter->format($minorTotalValue),
-                    //     'estrategia' => $minorStrategy.' - '.((array_key_exists($minorStrategy, $discountRules)) ? $discountRules[$minorStrategy]['description'] : 'NENHUMA'),
-                    //     'total de desconto' => $moneyFormatter->format($majorDiscountTotalValue),
-                    // ],
-                    // 'rulesPossibles' => $discountRules,
-                ],
-            ]
+            $finalResponse
         );
     }
 
