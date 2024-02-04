@@ -105,6 +105,8 @@ class CartsController extends Controller
         $discountTotalValue = Money::BRL(0);
         $majorDiscountTotalValue = Money::BRL(0);
         $minorStrategy = 0;
+        $percentualDiscount = Money::BRL(0);
+        $valueDiscount = Money::BRL(0);
         foreach ($discountRules as $ruleId => $ruleApplied) {
             $ruleAppliedBool = (is_array($ruleApplied['rule'])) ? $ruleApplied['rule']['applied'] | false : false;
             if ($ruleAppliedBool) {
@@ -118,13 +120,14 @@ class CartsController extends Controller
                 $rulesMatched[$ruleId] = [
                     'rules' => $ruleApplied,
                 ];
-                $percentualDiscount = (is_array($ruleApplied['rule'])) ? (float) $ruleApplied['rule']['discountPercent'] | 0 : 0;
-                $valueDiscount = (is_array($ruleApplied['rule'])) ? (float) $ruleApplied['rule']['discountValue'] | 0 : 0;
-                if ($percentualDiscount > 0) {
-                    $discountTotalValue = $subtotal->multiply(strval(number_format($percentualDiscount, 2, '.', '') / 100));
+                $percentualDiscount = (is_array($ruleApplied['rule'])) ? $ruleApplied['rule']['discountPercent'] : Money::BRL(0);
+                $valueDiscount = (is_array($ruleApplied['rule'])) ? $ruleApplied['rule']['discountValue'] : Money::BRL(0);
+
+                if (Money::BRL(0)->lessThan($percentualDiscount)) {
+                    $discountTotalValue = $subtotal->multiply($percentualDiscount->getAmount())->divide(100);
                     $rulesMatched[$ruleId]['subtotal'] = $subtotal->subtract($discountTotalValue);
                 } else {
-                    $discountTotalValue = $moneyParser->parse(strval(number_format($valueDiscount, 2, '.', '')), 'BRL');
+                    $discountTotalValue = $valueDiscount;
                     $rulesMatched[$ruleId]['subtotal'] = $subtotal->subtract($discountTotalValue);
                 }
                 $discountRules[$ruleId]['final_discount'] = $moneyFormatter->format($discountTotalValue);
@@ -144,7 +147,14 @@ class CartsController extends Controller
 
         $discount = $majorDiscountTotalValue;
         $total = $subtotal->subtract($discount);
-        $strategy = 0 == $minorStrategy ? 'none' : $minorStrategy;
+        $strategyNames = [
+            1 => 'above-3000',
+            2 => 'take-3-pay-2',
+            3 => 'same-category',
+            4 => 'employee',
+            5 => 'new-user',
+        ];
+        $strategy = (0 == $minorStrategy) ? 'none' : $strategyNames[$minorStrategy];
 
         $isDebug = (bool) $request->get('debug') | false;
         $finalResponse = [
@@ -161,6 +171,10 @@ class CartsController extends Controller
                 'valor final com desconto' => $moneyFormatter->format($minorTotalValue),
                 'estrategia' => $minorStrategy.' - '.((array_key_exists($minorStrategy, $discountRules)) ? $discountRules[$minorStrategy]['description'] : 'NENHUMA'),
                 'total de desconto' => $moneyFormatter->format($majorDiscountTotalValue),
+                'valor raw desconto' => [
+                    'percentualDiscount' => $percentualDiscount,
+                    'valueDiscount' => $valueDiscount,
+                ],
             ];
             $finalResponse['rulesPossibles'] = $discountRules;
         }
@@ -185,14 +199,14 @@ class CartsController extends Controller
         if ($subtotal >= 3000) {
             return [
                 'applied' => true,
-                'discountPercent' => 15.0,
-                'discountValue' => 0.0,
+                'discountPercent' => Money::BRL(15),
+                'discountValue' => Money::BRL(0),
             ];
         } else {
             return [
                 'applied' => false,
-                'discountPercent' => 0.0,
-                'discountValue' => 0.0,
+                'discountPercent' => Money::BRL(0),
+                'discountValue' => Money::BRL(0),
             ];
         }
     }
@@ -235,21 +249,21 @@ class CartsController extends Controller
                 // possui produtos na promocao mas nao em quantidade suficiente
                 return [
                     'applied' => false,
-                    'discountPercent' => 0.0,
-                    'discountValue' => 0.0,
+                    'discountPercent' => Money::BRL(0),
+                    'discountValue' => Money::BRL(0),
                 ];
             } else {
                 return [
                     'applied' => true,
-                    'discountPercent' => 0.0,
-                    'discountValue' => floatval($moneyFormatter->format($discountTotal)),
+                    'discountPercent' => Money::BRL(0),
+                    'discountValue' => $discountTotal,
                 ];
             }
         } else {
             return [
                 'applied' => false,
-                'discountPercent' => 0.0,
-                'discountValue' => 0.0,
+                'discountPercent' => Money::BRL(0),
+                'discountValue' => Money::BRL(0),
             ];
         }
     }
@@ -303,20 +317,20 @@ class CartsController extends Controller
                     }
                 }
                 // Aplica o desconto do menor valor de produto (40% do valor dele)
-                $discountTotal = $discountTotal->add($minorPriceProduct->multiply(.4));
+                $discountTotal = $discountTotal->add($minorPriceProduct->multiply(.4, Money::ROUND_DOWN));
                 // observa-se que será somado à outras categorias que/se houverem
                 // o $idMinorPrice poderá ser usado para descriminar o item se necessário
             }
             return [
                 'applied' => true,
-                'discountPercent' => 0.0,
-                'discountValue' => floatval($moneyFormatter->format($discountTotal)),
+                'discountPercent' => Money::BRL(0),
+                'discountValue' => $discountTotal,
             ];
         } else {
             return [
                 'applied' => false,
-                'discountPercent' => 0.0,
-                'discountValue' => 0.0,
+                'discountPercent' => Money::BRL(0),
+                'discountValue' => Money::BRL(0),
             ];
         }
     }
@@ -341,23 +355,23 @@ class CartsController extends Controller
             if (true === $responseData['data']['isEmployee']) {
                 return [
                     'applied' => true,
-                    'discountPercent' => 20.0,
-                    'discountValue' => 0.0,
+                    'discountPercent' => Money::BRL(20),
+                    'discountValue' => Money::BRL(0),
                 ];
             } else {
                 // se nao colaborador
                 return [
                     'applied' => false,
-                    'discountPercent' => 0.0,
-                    'discountValue' => 0.0,
+                    'discountPercent' => Money::BRL(0),
+                    'discountValue' => Money::BRL(0),
                 ];
             }
         } else {
             // se vier qualquer coisa diferente de sucesso eu ignoro o email errado, inexistente ou nao colaborador
             return [
                 'applied' => false,
-                'discountPercent' => 0.0,
-                'discountValue' => 0.0,
+                'discountPercent' => Money::BRL(0),
+                'discountValue' => Money::BRL(0),
             ];
         }
     }
@@ -383,15 +397,15 @@ class CartsController extends Controller
             // claro que isso pode ser feito de outras formas com outras validacoes mais eficazes, mas pra este teste eu so mudei o status por seguranca
             return [
                 'applied' => true,
-                'discountPercent' => 0.0,
-                'discountValue' => 25.0, // NAO APLICAR direto, validar se carrinho terá mais de 50R$ no fianl
+                'discountPercent' => Money::BRL(0),
+                'discountValue' => Money::BRL(2500), // NAO APLICAR direto, validar se carrinho terá mais de 50R$ no fianl
             ];
         } else {
             // se vier qualquer coisa diferente de 404 eu assumo que o email ja foi validado
             return [
                 'applied' => false,
-                'discountPercent' => 0.0,
-                'discountValue' => 0.0,
+                'discountPercent' => Money::BRL(0),
+                'discountValue' => Money::BRL(0),
             ];
         }
     }

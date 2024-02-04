@@ -20,7 +20,7 @@
                 "subtotal": "1260.03",
                 "discount": "168.00",
                 "total": "1092.03",
-                "strategy": 3
+                "strategy": "same-category"
             }
         }
     }

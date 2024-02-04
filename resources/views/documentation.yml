@@ -18,7 +18,9 @@ paths:
       description: Calculate cart total value and discount prices.
       operationId: discountCalculator
       requestBody:
-        description: Cart fields
+        description: '
+          Cart field<br>
+          <b>TIP:</b> pass <b>*"debug":1*</b> inside JSON body (root level) to get a complete DEBUG of the rules'
         required: true
         content:
           application/json:
