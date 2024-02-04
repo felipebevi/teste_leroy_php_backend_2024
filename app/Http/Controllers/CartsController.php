@@ -304,28 +304,40 @@ class CartsController extends Controller
 
             $minorPriceProduct = Money::BRL(0);
             // $idMinorPrice='';
+            $hasRealDiscount = false; // verifica se existe mais de um produto na mesma categoria pra realizar a regra
             foreach ($productsPerCategory as $category) {
-                foreach ($category as $product) {
-                    if ((float) $product['unitPrice'] > 0 &&
-                        (
-                            $minorPriceProduct->equals(Money::BRL(0)) ||
-                            $minorPriceProduct->greaterThan($moneyParser->parse($product['unitPrice'], 'BRL'))
-                        )
-                    ) {
-                        $minorPriceProduct = $moneyParser->parse($product['unitPrice'], 'BRL');
-                        // $idMinorPrice = $product['id'];
+                if (count($category) > 1) {
+                    $hasRealDiscount = true;
+                    foreach ($category as $product) {
+                        if ((float) $product['unitPrice'] > 0 &&
+                            (
+                                $minorPriceProduct->equals(Money::BRL(0)) ||
+                                $minorPriceProduct->greaterThan($moneyParser->parse($product['unitPrice'], 'BRL'))
+                            )
+                        ) {
+                            $minorPriceProduct = $moneyParser->parse($product['unitPrice'], 'BRL');
+                            // $idMinorPrice = $product['id'];
+                        }
                     }
+                    // Aplica o desconto do menor valor de produto (40% do valor dele)
+                    $discountTotal = $discountTotal->add($minorPriceProduct->multiply(.4, Money::ROUND_DOWN));
+                    // observa-se que será somado à outras categorias que/se houverem
+                    // o $idMinorPrice poderá ser usado para descriminar o item se necessário
                 }
-                // Aplica o desconto do menor valor de produto (40% do valor dele)
-                $discountTotal = $discountTotal->add($minorPriceProduct->multiply(.4, Money::ROUND_DOWN));
-                // observa-se que será somado à outras categorias que/se houverem
-                // o $idMinorPrice poderá ser usado para descriminar o item se necessário
             }
-            return [
-                'applied' => true,
-                'discountPercent' => Money::BRL(0),
-                'discountValue' => $discountTotal,
-            ];
+            if ($hasRealDiscount) {
+                return [
+                    'applied' => true,
+                    'discountPercent' => Money::BRL(0),
+                    'discountValue' => $discountTotal,
+                ];
+            } else {
+                return [
+                    'applied' => false,
+                    'discountPercent' => Money::BRL(0),
+                    'discountValue' => Money::BRL(0),
+                ];
+            }
         } else {
             return [
                 'applied' => false,
