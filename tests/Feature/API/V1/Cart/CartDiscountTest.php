@@ -57,6 +57,7 @@ class CartDiscountTest extends TestCase
         yield from $this->getFixture('valid_almost_all_rules_with_discount_above_3000_in_final');
         yield from $this->getFixture('valid_almost_all_rules_with_discount_for_employee_in_final');
         yield from $this->getFixture('valid_almost_all_rules_with_discount_for_new_user_in_final');
+        yield from $this->getFixture('valid_with_debug_option');
     }
 
     /**
