@@ -59,7 +59,7 @@ class UsersTest extends TestCase
         $response = $this->getJson("/api/v1/user/{$email}");
 
         // Assertions
-        $response->assertStatus(404);
+        $response->assertStatus(409); // nao usarei 404 pois a API pode ter caido por ex.
         $response->assertJson(
             [
                 'message' => 'Not Found.',

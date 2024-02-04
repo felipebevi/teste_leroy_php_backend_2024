@@ -17,7 +17,7 @@ class UsersController extends Controller
 
         $employees = config('api.employees');
 
-        abort_if(!array_key_exists($email, $employees), 404, 'Not Found.');
+        abort_if(!array_key_exists($email, $employees), 409, 'Not Found.');
 
         return new JsonResponse(
             [
